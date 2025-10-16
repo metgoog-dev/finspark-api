@@ -1,0 +1,74 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: microfinance-postgres
+    environment:
+      POSTGRES_DB: microfinance
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - microfinance-network
+
+  smtp:
+    image: axllent/mailpit:latest
+    container_name: microfinance-mailpit
+    ports:
+      - "8025:8025" # Web UI
+      - "1025:1025" # SMTP
+    networks:
+      - microfinance-network
+
+  app:
+    build: .
+    container_name: microfinance-app
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/microfinance
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: password
+      JWT_SECRET: microfinanceSecretKeyForJWTGeneration2024
+      # Option 1: Gmail SMTP (try this first)
+      SPRING_MAIL_HOST: smtp.gmail.com
+      SPRING_MAIL_PORT: 465
+      SPRING_MAIL_USERNAME: winnerashesi@gmail.com
+      SPRING_MAIL_PASSWORD: lluk pvps xddq jtdd
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: true
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_ENABLE: true
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_TRUST: smtp.gmail.com
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_CONNECTIONTIMEOUT: 10000
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_TIMEOUT: 10000
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_WRITETIMEOUT: 10000
+      MAIL_FROM: winnerashesi@gmail.com
+      # Option 2: Local Mailpit (uncomment these and comment Gmail settings above if Gmail fails)
+      # SPRING_MAIL_HOST: smtp
+      # SPRING_MAIL_PORT: 1025
+      # SPRING_MAIL_USERNAME: 
+      # SPRING_MAIL_PASSWORD: 
+      # SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: false
+      # SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_ENABLE: false
+      # MAIL_FROM: test@microfinance.local
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - microfinance-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  microfinance-network:
+    driver: bridge
